@@ -183,6 +183,10 @@ export interface AnalysisResult {
   recordsShown?: number;
   /** Total number of records in the file (scanned, may exceed recordsShown). */
   totalRecords?: number;
+  /** Byte offset where each loaded chunk starts (for next/previous navigation). */
+  chunkStartOffsets?: number[];
+  /** Current chunk index (0-based). */
+  chunkIndex?: number;
 }
 
 export type SeverityFilter = 'all' | 'recommended' | 'review' | 'none';

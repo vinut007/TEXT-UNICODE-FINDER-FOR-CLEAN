@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   FileText,
@@ -45,6 +45,32 @@ export function Workspace({ result }: { result: AnalysisResult }) {
   const setTheme = useStore((s) => s.setTheme);
   const reset = useStore((s) => s.reset);
 
+  const [leftWidth, setLeftWidth] = useState(280);
+  const [rightWidth, setRightWidth] = useState(320);
+  const [resizing, setResizing] = useState<'left' | 'right' | null>(null);
+
+  const startResize = (side: 'left' | 'right') => {
+    setResizing(side);
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = side === 'left' ? 'ew-resize' : 'ew-resize';
+  };
+
+  const stopResize = () => {
+    setResizing(null);
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+  };
+
+  const onMouseMove = (e: MouseEvent) => {
+    if (resizing === 'left') {
+      const w = Math.max(200, Math.min(500, e.clientX));
+      setLeftWidth(w);
+    } else if (resizing === 'right') {
+      const w = Math.max(200, Math.min(500, window.innerWidth - e.clientX));
+      setRightWidth(w);
+    }
+  };
+
   // keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -60,6 +86,15 @@ export function Workspace({ result }: { result: AnalysisResult }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [undo, redo]);
+
+  useEffect(() => {
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', stopResize);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', stopResize);
+    };
+  }, [resizing]);
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1;
@@ -171,11 +206,20 @@ export function Workspace({ result }: { result: AnalysisResult }) {
 
         <aside
           className={cn(
-            'absolute inset-y-0 left-0 z-40 w-[280px] shrink-0 border-r border-line transition-transform xl:relative xl:z-auto xl:translate-x-0',
+            'absolute inset-y-0 left-0 z-40 shrink-0 border-r border-line transition-transform xl:relative xl:z-auto xl:translate-x-0',
             leftDrawerOpen ? 'translate-x-0' : '-translate-x-full',
           )}
+          style={{ width: `${leftWidth}px` }}
         >
-          <LeftSidebar result={result} />
+          <div className="inset-y-0">
+            <LeftSidebar result={result} />
+          </div>
+          {resizing === 'left' || (
+            <div
+              className="absolute right-0 inset-y-0 w-2 cursor-ew-resize hover:bg-sky-400/30 bg-transparent"
+              onMouseDown={() => startResize('left')}
+            />
+          )}
         </aside>
 
         {/* center */}
@@ -220,11 +264,20 @@ export function Workspace({ result }: { result: AnalysisResult }) {
         {/* right drawer (mobile) */}
         <aside
           className={cn(
-            'absolute inset-y-0 right-0 z-40 w-[320px] shrink-0 border-l border-line transition-transform xl:relative xl:z-auto xl:translate-x-0',
+            'absolute inset-y-0 right-0 z-40 shrink-0 border-l border-line transition-transform xl:relative xl:z-auto xl:translate-x-0',
             rightDrawerOpen ? 'translate-x-0' : 'translate-x-full',
           )}
+          style={{ width: `${rightWidth}px` }}
         >
-          <RightSidebar result={result} />
+          <div className="inset-y-0">
+            <RightSidebar result={result} />
+          </div>
+          {resizing === 'right' || (
+            <div
+              className="absolute left-0 inset-y-0 w-2 cursor-ew-resize hover:bg-sky-400/30 bg-transparent"
+              onMouseDown={() => startResize('right')}
+            />
+          )}
         </aside>
 
         {/* cleaning overlay */}
