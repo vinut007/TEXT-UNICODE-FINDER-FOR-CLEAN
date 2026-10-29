@@ -370,26 +370,28 @@ export function LeftSidebar({ result }: { result: AnalysisResult }) {
         </section>
       )}
 
-      {/* danger zone */}
-      <section className="mt-auto rounded-xl border border-rose-500/30 bg-rose-500/[0.06] p-3">
-        <p className="text-[10.5px] leading-relaxed text-ink-muted">
-          Clear File drops every in-memory copy of your data immediately.
-        </p>
-        <button className="btn-danger mt-2 w-full !py-1.5 !text-[11px]" onClick={reset}>
-          <RotateCcw className="h-3.5 w-3.5" />
-          Clear File &amp; Reset Analysis
-        </button>
-
-        <div className="mt-2 rounded-xl border border-line bg-surface p-2">
-          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-ink-faint mb-1">
+        {/* export */}
+        <section className="mt-auto rounded-xl border border-yellow-400/30 bg-yellow-400/[0.08] p-3">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-yellow-500 mb-1">
             <Download className="h-3 w-3" /> Export
           </div>
-          <button className="w-full flex items-center justify-between border border-line bg-surface-raised rounded px-2 py-1.5 text-[11px] text-ink hover:bg-yellow-400/5 hover:border-yellow-400/30" onClick={exportErrorWords}>
+          <button className="w-full flex items-center justify-between border border-yellow-400/50 bg-yellow-400/10 rounded px-2 py-1.5 text-[11px] font-semibold text-yellow-500 hover:bg-yellow-400/25 hover:border-yellow-400 transition-all" onClick={exportErrorWords}>
             <span className="truncate">Export error words (CSV)</span>
-            <span className="text-ink-faint">Code Point · character · replace</span>
+            <span className="text-yellow-400/70 text-[10px]">Code Point · character · replace</span>
+            <Download className="h-3 w-3" />
           </button>
-        </div>
-      </section>
+        </section>
+
+        {/* danger zone */}
+        <section className="mt-2 rounded-xl border border-rose-500/30 bg-rose-500/[0.06] p-3">
+          <p className="text-[10.5px] leading-relaxed text-ink-muted">
+            Clear File drops every in-memory copy of your data immediately.
+          </p>
+          <button className="mt-2 w-full btn-danger !py-1.5 !text-[11px]" onClick={reset}>
+            <RotateCcw className="h-3.5 w-3.5" />
+            Clear File &amp; Reset Analysis
+          </button>
+        </section>
     </div>
   );
 }
