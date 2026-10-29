@@ -1,0 +1,4 @@
+﻿Hello World
+NBSP:u{00A0} between words
+ZWSP:wordu{200B}break
+Mojibake: cafÃ© naÃ¯ve

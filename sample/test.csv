@@ -1,0 +1,7 @@
+﻿id,name,notes,price
+1,Café Münchën,NBSP here:u{00A0}end,12.50
+2,Naïve résumé,ZWSPu{200B}here and ZWJu{200D}here,9.99
+3,u{201C}Curly quotesu{201D},Softu{00AD}hyphen test,4.25
+4,中文名字,IDEOGRAPHICu{3000}SPACE,7.77
+5,MojibakeÃ©sample,UTF-8 read as Latin-1,3.00
+6,Emoji 🎉 test,Control charu{0007}hidden,5.55
