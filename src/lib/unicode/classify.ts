@@ -181,6 +181,28 @@ export function classifyCodePoint(
       };
     }
 
+    // Emoji -> text equivalents.
+    const emoji = suggestEmoji(cp);
+    if (emoji) {
+      return {
+        category: 'non-ascii',
+        severity: 'review',
+        suggestion: emoji,
+        description: `${name} is an emoji. Replace with '${emoji.char}' if downstream systems require pure ASCII.`,
+      };
+    }
+
+    // Symbol -> ASCII equivalents.
+    const symbol = suggestSymbol(cp);
+    if (symbol) {
+      return {
+        category: 'non-ascii',
+        severity: 'review',
+        suggestion: symbol,
+        description: `${name} is a symbol. Replace with '${symbol.char}' if downstream systems require pure ASCII.`,
+      };
+    }
+
     return {
       category: 'non-ascii',
       severity: 'none',
@@ -257,6 +279,196 @@ function suggestMultiAscii(cp: number): ReplacementSuggestion | null {
     0x00fe: { char: 'th', label: "Replace with 'th' (þ)" },
   };
   const entry = map[cp];
+  if (!entry) return null;
+  return {
+    char: entry.char,
+    codePoint: entry.char.codePointAt(0)!,
+    label: entry.label,
+  };
+}
+
+/** Common emoji -> text equivalents. */
+const EMOJI_MAP: Record<number, { char: string; label: string }> = {
+  0x1f600: { char: ':D', label: "Replace with ':D' (grinning face)" },
+  0x1f603: { char: ':D', label: "Replace with ':D' (grinning face with big eyes)" },
+  0x1f604: { char: ':D', label: "Replace with ':D' (grinning face with smiling eyes)" },
+  0x1f601: { char: ':D', label: "Replace with ':D' (beaming face with smiling eyes)" },
+  0x1f606: { char: ':D', label: "Replace with ':D' (grinning squinting face)" },
+  0x1f923: { char: ':D', label: "Replace with ':D' (rolling on the floor laughing)" },
+  0x1f602: { char: ':D', label: "Replace with ':D' (face with tears of joy)" },
+  0x1f642: { char: ':)', label: "Replace with ':)' (slightly smiling face)" },
+  0x1f643: { char: ':)', label: "Replace with ':)' (upside-down face)" },
+  0x1f609: { char: ';)', label: "Replace with ';)' (winking face)" },
+  0x1f60a: { char: ':)', label: "Replace with ':)' (smiling face with smiling eyes)" },
+  0x1f60d: { char: ':*', label: "Replace with ':*' (face blowing a kiss)" },
+  0x1f618: { char: ':*', label: "Replace with ':*' (face blowing a kiss)" },
+  0x1f617: { char: ':p', label: "Replace with ':p' (face with tongue)" },
+  0x1f61b: { char: ':p', label: "Replace with ':p' (face with stuck-out tongue & winking eye)" },
+  0x1f61c: { char: ':p', label: "Replace with ':p' (face with stuck-out tongue & closed eyes)" },
+  0x1f61d: { char: ':p', label: "Replace with ':p' (face with stuck-out tongue & tightly-closed eyes)" },
+  0x1f60b: { char: ':)', label: "Replace with ':)' (smiling face with halo)" },
+  0x1f60f: { char: ':*', label: "Replace with ':*' (smiling face with heart-shaped eyes)" },
+  0x1f619: { char: ':*', label: "Replace with ':*' (kissing face with smiling eyes)" },
+  0x1f61a: { char: ':*', label: "Replace with ':*' (kissing face with closed eyes)" },
+  0x1f61e: { char: ':p', label: "Replace with ':p' (disappointed face)" },
+  0x1f620: { char: ':(', label: "Replace with ':(' (angry face)" },
+  0x1f621: { char: ':(', label: "Replace with ':(' (pouting face)" },
+  0x1f622: { char: ':(', label: "Replace with ':(' (crying face)" },
+  0x1f623: { char: ':(', label: "Replace with ':(' (disappointed but relieved face)" },
+  0x1f624: { char: ':(', label: "Replace with ':(' (weary face)" },
+  0x1f625: { char: ':(', label: "Replace with ':(' (pensive face)" },
+  0x1f626: { char: ":'(", label: "Replace with ':(' (face screaming in fear)" },
+  0x1f627: { char: ':(', label: "Replace with ':(' (weary face)" },
+  0x1f628: { char: ':-O', label: "Replace with ':-O' (fearful face)" },
+  0x1f629: { char: ':-O', label: "Replace with ':-O' (astonished face)" },
+  0x1f62a: { char: '-_-', label: "Replace with '-_-' (face with raised eyebrow)" },
+  0x1f62b: { char: ':(', label: "Replace with ':(' (tired face)" },
+  0x1f62c: { char: '-_-', label: "Replace with '-_-' (face with look of triumph)" },
+  0x1f62d: { char: ':(', label: "Replace with ':(' (loudly crying face)" },
+  0x1f62e: { char: ':(', label: "Replace with ':(' (hushed face)" },
+  0x1f62f: { char: ':-O', label: "Replace with ':-O' (face with open mouth & cold sweat)" },
+  0x1f630: { char: '-_-', label: "Replace with '-_-' (face screaming in fear)" },
+  0x1f631: { char: ':-O', label: "Replace with ':-O' (flushed face)" },
+  0x1f632: { char: ':(', label: "Replace with ':(' (sleeping face)" },
+  0x1f633: { char: ':(', label: "Replace with ':(' (dizzy face)" },
+  0x1f634: { char: '-_-', label: "Replace with '-_-' (face without mouth)" },
+  0x1f635: { char: '-_-', label: "Replace with '-_-' (face with diagonal mouth)" },
+  0x1f636: { char: '-_-', label: "Replace with '-_-' (face with steam from nose)" },
+  0x1f637: { char: ':D', label: "Replace with ':D' (face with open mouth)" },
+  0x1f638: { char: ':-O', label: "Replace with ':-O' (face with open mouth & cold sweat)" },
+  0x1f639: { char: ':O', label: "Replace with ':O' (hushed face)" },
+  0x1f63a: { char: ':)', label: "Replace with ':)' (face with open mouth & smiling eyes)" },
+  0x1f63b: { char: ':)', label: "Replace with ':)' (smiling face with open mouth & tightly-closed eyes)" },
+  0x1f63c: { char: ':)', label: "Replace with ':)' (smiling face with halo)" },
+  0x1f63d: { char: ':(', label: "Replace with ':(' (sleeping face)" },
+  0x1f63e: { char: ':-O', label: "Replace with ':-O' (face with open mouth & cold sweat)" },
+  0x1f63f: { char: ':-O', label: "Replace with ':-O' (face with open mouth & smiling eyes)" },
+  0x1f640: { char: ':D', label: "Replace with ':D' (face with open mouth & tightly-closed eyes)" },
+  0x1f641: { char: ':-O', label: "Replace with ':-O' (face with open mouth & smiling eyes)" },
+  0x1f644: { char: ':)', label: "Replace with ':)' (upside-down face)" },
+  0x1f645: { char: ':-/', label: "Replace with ':-/' (face with raised eyebrow)" },
+  0x1f646: { char: ':(', label: "Replace with ':(' (face with thermometer)" },
+  0x1f647: { char: ':(', label: "Replace with ':(' (face with head-bandage)" },
+  0x1f648: { char: ':(', label: "Replace with ':(' (nauseated face)" },
+  0x1f649: { char: ':(', label: "Replace with ':(' (sneezing face)" },
+  0x1f64a: { char: ':(', label: "Replace with ':(' (face with thermometer)" },
+  0x1f64b: { char: 'no', label: "Replace with 'no' (person gesturing no)" },
+  0x1f64c: { char: 'ok', label: "Replace with 'ok' (person gesturing ok)" },
+  0x1f64d: { char: ':(', label: "Replace with ':(' (person bowing)" },
+  0x1f64e: { char: ':-/', label: "Replace with ':-/' (person gesturing no)" },
+  0x1f64f: { char: ':)', label: "Replace with ':)' (person gesturing ok)" },
+  0x1f650: { char: ':-/', label: "Replace with ':-/' (person gesturing no)" },
+  0x1f90f: { char: ':D', label: "Replace with ':D' (face with hand over mouth)" },
+  0x1f910: { char: ':D', label: "Replace with ':D' (face with hand over mouth)" },
+  0x1f911: { char: ':)', label: "Replace with ':)' (zipper-mouth face)" },
+  0x1f913: { char: ':)', label: "Replace with ':)' (money-mouth face)" },
+  0x1f914: { char: ':-/', label: "Replace with ':-/' (face with thermometer)" },
+  0x1f915: { char: ':(', label: "Replace with ':(' (nerd face)" },
+  0x1f916: { char: ':-/', label: "Replace with ':-/' (face with monocle)" },
+  0x1f917: { char: ':p', label: "Replace with ':p' (hugging face)" },
+  0x1f919: { char: ':)', label: "Replace with ':)' (lion face)" },
+  0x1f91c: { char: ':-/', label: "Replace with ':-/' (face with cowboy hat)" },
+  0x1f91d: { char: ':-/', label: "Replace with ':-/' (clown face)" },
+  0x1f91e: { char: ':(', label: "Replace with ':(' (nauseated face)" },
+  0x1f920: { char: ':)', label: "Replace with ':)' (drooling face)" },
+  0x1f921: { char: ':(', label: "Replace with ':(' (lying face)" },
+  0x1f922: { char: ':)', label: "Replace with ':)' (face with hand over mouth)" },
+  0x1f924: { char: ':)', label: "Replace with ':)' (face with cowboy hat)" },
+  0x1f925: { char: ':)', label: "Replace with ':)' (clown face)" },
+  0x1f926: { char: ':)', label: "Replace with ':)' (nauseated face)" },
+  0x1f927: { char: ':-/', label: "Replace with ':-/' (rolling on the floor laughing)" },
+  0x1f928: { char: ':)', label: "Replace with ':)' (drooling face)" },
+  0x1f929: { char: ':)', label: "Replace with ':)' (lying face)" },
+  0x1f92a: { char: ':)', label: "Replace with ':)' (face with hand over mouth)" },
+  0x1f92b: { char: ':)', label: "Replace with ':)' (drooling face)" },
+  0x1f92c: { char: ':)', label: "Replace with ':)' (lying face)" },
+  0x1f92d: { char: ':-/', label: "Replace with ':-/' (face with hand over mouth)" },
+  0x1f92e: { char: ':)', label: "Replace with ':)' (drooling face)" },
+  0x1f92f: { char: ':)', label: "Replace with ':)' (lying face)" },
+  0x1f970: { char: ':)', label: "Replace with ':)' (drooling face)" },
+  0x1f971: { char: ':)', label: "Replace with ':)' (lying face)" },
+  0x1f972: { char: ':-/', label: "Replace with ':-/' (face with hand over mouth)" },
+  0x1f973: { char: ':)', label: "Replace with ':)' (drooling face)" },
+  0x1f974: { char: ':)', label: "Replace with ':)' (lying face)" },
+  0x1f975: { char: ':-/', label: "Replace with ':-/' (face with hand over mouth)" },
+  0x1f976: { char: ':-/', label: "Replace with ':-/' (drooling face)" },
+  0x1f977: { char: ':)', label: "Replace with ':)' (lying face)" },
+  0x1f978: { char: ':)', label: "Replace with ':)' (face with hand over mouth)" },
+  0x1f979: { char: ':-/', label: "Replace with ':-/' (drooling face)" },
+  0x1f97a: { char: ':-/', label: "Replace with ':-/' (lying face)" },
+  0x2764: { char: '<3', label: "Replace with '<3' (red heart)" },
+  0x1f494: { char: '<3', label: "Replace with '<3' (blue heart)" },
+  0x1f49a: { char: '<3', label: "Replace with '<3' (green heart)" },
+  0x1f49b: { char: '<3', label: "Replace with '<3' (yellow heart)" },
+  0x1f49c: { char: '<3', label: "Replace with '<3' (purple heart)" },
+  0x1f5a4: { char: '<3', label: "Replace with '<3' (black heart)" },
+  0x1f90e: { char: '<3', label: "Replace with '<3' (white heart)" },
+  0x1f90d: { char: '<3', label: "Replace with '<3' (brown heart)" },
+  0x1fa77: { char: '<3', label: "Replace with '<3' (heart on fire)" },
+  0x1fa78: { char: '<3', label: "Replace with '<3' (mending heart)" },
+  0x1f44d: { char: '(y)', label: "Replace with '(y)' (thumbs up)" },
+  0x1f44e: { char: '(n)', label: "Replace with '(n)' (thumbs down)" },
+  0x1f44c: { char: 'ok', label: "Replace with 'ok' (ok hand)" },
+  0x1f525: { char: 'fire', label: "Replace with 'fire' (fire)" },
+  0x1f4af: { char: '100', label: "Replace with '100' (hundred points)" },
+  0x2728: { char: '*', label: "Replace with '*' (sparkles)" },
+  0x1f389: { char: 'party', label: "Replace with 'party' (party popper)" },
+  0x1f38a: { char: 'party', label: "Replace with 'party' (confetti ball)" },
+  0x2b50: { char: '*', label: "Replace with '*' (star)" },
+  0x1f31f: { char: '*', label: "Replace with '*' (glowing star)" },
+};
+
+export function suggestEmoji(cp: number): ReplacementSuggestion | null {
+  const entry = EMOJI_MAP[cp];
+  if (!entry) return null;
+  return {
+    char: entry.char,
+    codePoint: entry.char.codePointAt(0)!,
+    label: entry.label,
+  };
+}
+
+/** Common symbol -> ASCII equivalents. */
+const SYMBOL_MAP: Record<number, { char: string; label: string }> = {
+  0x2605: { char: '*', label: "Replace with '*' (black star)" },
+  0x2606: { char: '*', label: "Replace with '*' (white star)" },
+  0x2192: { char: '->', label: "Replace with '->' (rightwards arrow)" },
+  0x2190: { char: '<-', label: "Replace with '<-' (leftwards arrow)" },
+  0x2191: { char: '^', label: "Replace with '^' (upwards arrow)" },
+  0x2193: { char: 'v', label: "Replace with 'v' (downwards arrow)" },
+  0x2194: { char: '<->', label: "Replace with '<->' (left right arrow)" },
+  0x2260: { char: '!=', label: "Replace with '!=' (not equal to)" },
+  0x2264: { char: '<=', label: "Replace with '<=' (less-than or equal to)" },
+  0x2265: { char: '>=', label: "Replace with '>=' (greater-than or equal to)" },
+  0x00b1: { char: '+/-', label: "Replace with '+/-' (plus-minus sign)" },
+  0x00d7: { char: 'x', label: "Replace with 'x' (multiplication sign)" },
+  0x00f7: { char: '/', label: "Replace with '/' (division sign)" },
+  0x00a2: { char: '(c)', label: "Replace with '(c)' (cent sign)" },
+  0x00a3: { char: 'GBP', label: "Replace with 'GBP' (pound sign)" },
+  0x20ac: { char: 'EUR', label: "Replace with 'EUR' (euro sign)" },
+  0x00a5: { char: 'JPY', label: "Replace with 'JPY' (yen sign)" },
+  0x00a9: { char: '(c)', label: "Replace with '(c)' (copyright sign)" },
+  0x00ae: { char: '(r)', label: "Replace with '(r)' (registered sign)" },
+  0x2122: { char: '(tm)', label: "Replace with '(tm)' (trade mark sign)" },
+  0x00b0: { char: 'deg', label: "Replace with 'deg' (degree sign)" },
+  0x00a1: { char: '!', label: "Replace with '!' (inverted exclamation mark)" },
+  0x00bf: { char: '?', label: "Replace with '?' (inverted question mark)" },
+  0x2022: { char: '*', label: "Replace with '*' (bullet)" },
+  0x2026: { char: '...', label: "Replace with '...' (horizontal ellipsis)" },
+  0x2013: { char: '-', label: "Replace with '-' (en dash)" },
+  0x2014: { char: '-', label: "Replace with '-' (em dash)" },
+  0x2018: { char: "'", label: "Replace with \"'\" (left single quotation mark)" },
+  0x2019: { char: "'", label: "Replace with \"'\" (right single quotation mark)" },
+  0x201c: { char: '"', label: "Replace with '\"' (left double quotation mark)" },
+  0x201d: { char: '"', label: "Replace with '\"' (right double quotation mark)" },
+  0x00ab: { char: '<<', label: "Replace with '<<' (left-pointing double angle quotation mark)" },
+  0x00bb: { char: '>>', label: "Replace with '>>' (right-pointing double angle quotation mark)" },
+  0x2032: { char: "'", label: "Replace with \"'\" (prime)" },
+  0x2033: { char: "\"", label: "Replace with '\"' (double prime)" },
+};
+
+export function suggestSymbol(cp: number): ReplacementSuggestion | null {
+  const entry = SYMBOL_MAP[cp];
   if (!entry) return null;
   return {
     char: entry.char,
