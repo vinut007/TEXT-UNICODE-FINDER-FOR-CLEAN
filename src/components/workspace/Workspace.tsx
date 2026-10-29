@@ -211,7 +211,7 @@ export function Workspace({ result }: { result: AnalysisResult }) {
           )}
           style={{ width: `${leftWidth}px` }}
         >
-          <div className="inset-y-0 overflow-y-auto pr-1">
+          <div className="h-full overflow-y-auto pr-1">
             <LeftSidebar result={result} />
           </div>
           {resizing === 'left' || (
@@ -269,7 +269,7 @@ export function Workspace({ result }: { result: AnalysisResult }) {
           )}
           style={{ width: `${rightWidth}px` }}
         >
-          <div className="inset-y-0 overflow-y-auto pl-1">
+          <div className="h-full overflow-y-auto pl-1">
             <RightSidebar result={result} />
           </div>
           {resizing === 'right' || (
