@@ -272,6 +272,8 @@ function suggestMultiAscii(cp: number): ReplacementSuggestion | null {
   const map: Record<number, { char: string; label: string }> = {
     0x00c6: { char: 'AE', label: "Replace with 'AE' (Æ)" },
     0x00e6: { char: 'ae', label: "Replace with 'ae' (æ)" },
+    0x00d8: { char: 'O', label: "Replace with 'O' (Ø)" },
+    0x00f8: { char: 'o', label: "Replace with 'o' (ø)" },
     0x00df: { char: 'ss', label: "Replace with 'ss' (ß)" },
     0x0152: { char: 'OE', label: "Replace with 'OE' (Œ)" },
     0x0153: { char: 'oe', label: "Replace with 'oe' (œ)" },
@@ -503,6 +505,9 @@ export function recoverMojibake(text: string): ReplacementSuggestion | null {
         label: `Replace with '${base}' (U+${baseCp.toString(16).toUpperCase().padStart(4, '0')}) — recovered from '${text}'`,
       };
     }
+
+    const multi = suggestMultiAscii(recoveredCp);
+    if (multi) return multi;
 
     return {
       char: recovered,
