@@ -152,6 +152,22 @@ export function classifyCodePoint(
         description: `${name} is a typographic character commonly introduced by word processors. Replace it only if downstream systems require pure ASCII.`,
       };
     }
+
+    // Accented letters decompose to an ASCII base via NFD (e.g. ü → u, é → e, å → a).
+    const base = asciiBase(cp);
+    if (base) {
+      const baseCp = base.codePointAt(0)!;
+      return {
+        category: 'non-ascii',
+        severity: 'review',
+        suggestion: {
+          char: base,
+          codePoint: baseCp,
+          label: `Replace with '${base}' (U+${baseCp.toString(16).toUpperCase().padStart(4, '0')})`,
+        },
+        description: `${name} is an accented character. Replace with ASCII base '${base}' if downstream systems require pure ASCII.`,
+      };
+    }
     return {
       category: 'non-ascii',
       severity: 'none',
@@ -195,6 +211,25 @@ function suggestAsciiPunctuation(cp: number): ReplacementSuggestion | undefined 
     default:
       return undefined;
   }
+}
+
+/** Strip accents/diacritics via NFD decomposition; return ASCII base char if one exists. */
+function asciiBase(cp: number): string | null {
+  const decomposed = String.fromCodePoint(cp).normalize('NFD');
+  let base = '';
+  let i = 0;
+  while (i < decomposed.length) {
+    const dcp = decomposed.codePointAt(i)!;
+    // combining diacritical marks U+0300–U+036F
+    if (dcp >= 0x0300 && dcp <= 0x036f) {
+      i += dcp > 0xffff ? 2 : 1;
+      continue;
+    }
+    base += decomposed[i];
+    i += dcp > 0xffff ? 2 : 1;
+  }
+  if (base.length === 1 && base.codePointAt(0)! < 0x80) return base;
+  return null;
 }
 
 /* ---------------- mojibake heuristics ---------------- */
