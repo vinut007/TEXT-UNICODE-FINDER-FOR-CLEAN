@@ -4,6 +4,7 @@ import { useStore } from '@/store/useAnalysisStore';
 
 const LINKS = [
   { href: '#features', label: 'Features' },
+  { href: '#about', label: 'About' },
   { href: '#reference', label: 'Character Reference' },
   { href: '#how-it-works', label: 'How It Works' },
   { href: '#privacy', label: 'Privacy' },
