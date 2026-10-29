@@ -168,6 +168,19 @@ export function classifyCodePoint(
         description: `${name} is an accented character. Replace with ASCII base '${base}' if downstream systems require pure ASCII.`,
       };
     }
+
+    // Characters that don't NFD-decompose to a single ASCII base but have
+    // common ASCII replacements (e.g. Æ → AE, ß → ss, œ → oe).
+    const multi = suggestMultiAscii(cp);
+    if (multi) {
+      return {
+        category: 'non-ascii',
+        severity: 'review',
+        suggestion: multi,
+        description: `${name} is an accented character. Replace with '${multi.char}' if downstream systems require pure ASCII.`,
+      };
+    }
+
     return {
       category: 'non-ascii',
       severity: 'none',
@@ -230,6 +243,26 @@ function asciiBase(cp: number): string | null {
   }
   if (base.length === 1 && base.codePointAt(0)! < 0x80) return base;
   return null;
+}
+
+/** Multi-character ASCII replacements for characters that don't NFD-decompose cleanly. */
+function suggestMultiAscii(cp: number): ReplacementSuggestion | null {
+  const map: Record<number, { char: string; label: string }> = {
+    0x00c6: { char: 'AE', label: "Replace with 'AE' (Æ)" },
+    0x00e6: { char: 'ae', label: "Replace with 'ae' (æ)" },
+    0x00df: { char: 'ss', label: "Replace with 'ss' (ß)" },
+    0x0152: { char: 'OE', label: "Replace with 'OE' (Œ)" },
+    0x0153: { char: 'oe', label: "Replace with 'oe' (œ)" },
+    0x00de: { char: 'Th', label: "Replace with 'Th' (Þ)" },
+    0x00fe: { char: 'th', label: "Replace with 'th' (þ)" },
+  };
+  const entry = map[cp];
+  if (!entry) return null;
+  return {
+    char: entry.char,
+    codePoint: entry.char.codePointAt(0)!,
+    label: entry.label,
+  };
 }
 
 /** Recover the intended character from a mojibake sequence by re-encoding
