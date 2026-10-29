@@ -71,8 +71,11 @@ export function exportErrorWordsCsv(result: AnalysisResult): ExportedFile {
     lines.push([toCodePointHex(f.codePoint), char, replaceCp, replaceChar].map(esc).join(','));
   }
   const body = lines.join('\n') + '\n';
+  // Prepend UTF-8 BOM so Excel and other tools open the CSV as UTF-8,
+  // preventing mojibake characters from appearing double-encoded.
+  const bytes = '\uFEFF' + body;
   return {
-    bytes: body,
+    bytes,
     fileName: `${baseName(result.fileName)}-error-words.csv`,
     mime: 'text/csv;charset=utf-8',
     warnings: [`Exported ${result.findings.length} unique error code point(s), one per row.`],
