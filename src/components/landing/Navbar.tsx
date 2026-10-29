@@ -35,7 +35,7 @@ export function Navbar({ onReset }: { onReset?: () => void }) {
         <button
           onClick={onReset}
           className="group flex items-center gap-2.5"
-          aria-label="Unicode Inspector Pro home"
+          aria-label="Identifyy home"
         >
           <span className="relative grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-sky-400 to-sky-600 text-white shadow-glow transition-transform group-hover:scale-105">
             <ScanSearch className="h-5 w-5" />

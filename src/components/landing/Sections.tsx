@@ -442,7 +442,7 @@ export function About() {
           <div>
             <span className="label-cap text-sky-400">About</span>
             <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
-              Unicode Inspector Pro
+              Identifyy
             </h2>
             <p className="mt-4 text-ink-muted">
               A 100% browser-local tool to find, inspect, and clean invisible Unicode characters
@@ -494,7 +494,7 @@ export function About() {
               </span>
               <div>
                 <h3 className="text-base font-bold text-ink">Vinut Shreedhar Naik</h3>
-                <p className="text-xs text-ink-faint">Developer · Unicode Inspector Pro</p>
+                <p className="text-xs text-ink-faint">Developer · Identifyy</p>
               </div>
             </div>
             <p className="text-sm text-ink-muted mb-6">
@@ -522,7 +522,7 @@ export function Footer() {
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-sky-400 to-sky-600 text-white">
             <ScanLine className="h-4 w-4" />
           </span>
-          Unicode Inspector Pro
+          Identifyy
         </div>
         <p className="text-xs text-ink-faint">
           Local-first Unicode data-quality tool · React · TypeScript · Vite · SheetJS · Papa Parse

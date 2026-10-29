@@ -1,4 +1,4 @@
-# Unicode Inspector Pro
+# Identifyy
 
 100% browser-local inspector and cleaning tool for Unicode "invisible" characters in CSV, TXT, Excel, and Access files. Detects non-ASCII characters, Unicode whitespace, invisible/format characters, control characters, mojibake, and BOMs — highlights every occurrence with exact positions, then lets you safely clean and download the fixed file plus findings reports.
 
@@ -81,7 +81,7 @@ Static site; no functions required.
 
 ```bash
 npm run build
-npx wrangler pages deploy dist --project-name=unicode-inspector-pro
+npx wrangler pages deploy dist --project-name=identifyy
 ```
 
 Or connect the repo in the Cloudflare dashboard with build command `npm run build` and output directory `dist`.
@@ -89,7 +89,7 @@ Or connect the repo in the Cloudflare dashboard with build command `npm run buil
 Optional `wrangler.toml`:
 
 ```toml
-name = "unicode-inspector-pro"
+name = "identifyy"
 compatibility_date = "2024-11-01"
 pages_build_output_dir = "dist"
 ```
