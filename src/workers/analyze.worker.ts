@@ -11,6 +11,10 @@ let cancelled = false;
 let lastPost = 0;
 let lastStage = -1;
 let replied = false;
+let analysisTimeout: ReturnType<typeof setTimeout> | null = null;
+
+// 10 minute hard timeout so the UI never hangs forever
+const ANALYSIS_TIMEOUT_MS = 10 * 60 * 1000;
 
 function post(msg: WorkerResponse) {
   ctx.postMessage(msg);
@@ -19,7 +23,19 @@ function post(msg: WorkerResponse) {
 function postError(message: string) {
   if (replied) return;
   replied = true;
+  if (analysisTimeout) { clearTimeout(analysisTimeout); analysisTimeout = null; }
   post({ type: 'error', message });
+}
+
+function startTimeout() {
+  if (analysisTimeout) clearTimeout(analysisTimeout);
+  analysisTimeout = setTimeout(() => {
+    postError('Analysis timed out after 10 minutes. The file may be too large or complex — try splitting it into smaller files.');
+  }, ANALYSIS_TIMEOUT_MS);
+}
+
+function stopTimeout() {
+  if (analysisTimeout) { clearTimeout(analysisTimeout); analysisTimeout = null; }
 }
 
 // Catch async/uncaught errors (e.g. from cipher-base's Transform scheduling
@@ -85,6 +101,7 @@ ctx.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   replied = false;
   lastPost = 0;
   lastStage = -1;
+  startTimeout();
 
   try {
     const result = await analyzeFile(
@@ -104,6 +121,7 @@ ctx.onmessage = async (e: MessageEvent<WorkerRequest>) => {
       msg.resumeOffset,
       msg.resumeDelimiter,
     );
+    stopTimeout();
     if (cancelled) {
       replied = true;
       post({ type: 'cancelled' });
@@ -112,6 +130,7 @@ ctx.onmessage = async (e: MessageEvent<WorkerRequest>) => {
     replied = true;
     post({ type: 'done', result });
   } catch (err) {
+    stopTimeout();
     if (cancelled || (err instanceof Error && err.name === 'CancelledError')) {
       replied = true;
       post({ type: 'cancelled' });
