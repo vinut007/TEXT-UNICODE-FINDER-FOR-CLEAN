@@ -53,66 +53,29 @@ export function exportCleanedTextOrCsv(result: AnalysisResult, chain: CleanOp[][
   };
 }
 
-/** Export every error occurrence as its own row as a UTF-8 CSV file.
- * One row per location (occurrence), not one row per unique finding type. */
+/** Export one code point per row as a UTF-8 CSV file (4 columns).
+ * One row per unique finding type, not per occurrence. */
 export function exportErrorWordsCsv(result: AnalysisResult): ExportedFile {
   const esc = (v: string) => {
     if (/[",\n\r]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
     return v;
   };
-  const locLabel = (loc: Location): string => {
-    if (result.fileType === 'csv' && loc.record !== undefined) {
-      const field = loc.fieldIndex !== undefined ? loc.fieldIndex + 1 : '?';
-      const header = loc.fieldHeader ? ` (${loc.fieldHeader})` : '';
-      return `Record ${loc.record}, Field ${field}${header}`;
-    }
-    if (result.fileType === 'text' && loc.line !== undefined) {
-      const col = loc.column !== undefined ? `, Col ${loc.column}` : '';
-      return `Line ${loc.line}${col}`;
-    }
-    if ((result.fileType === 'excel' || result.fileType === 'access') && loc.sheet) {
-      return loc.cell ? `${loc.sheet}!${loc.cell}` : loc.sheet;
-    }
-    return '—';
-  };
-  const filePosLabel = (loc: Location): string =>
-    loc.filePos !== undefined ? String(loc.filePos) : '—';
-
   const lines: string[] = [];
   lines.push(
-    [
-      'Code Point',
-      'code point character',
-      'replace code point',
-      'replace code point character',
-      'Location',
-      'File Position',
-    ].map(esc).join(','),
+    ['Code Point', 'code point character', 'replace code point', 'replace code point character'].map(esc).join(','),
   );
-
-  let totalOccurrences = 0;
   for (const f of result.findings) {
     const char = f.isSequence ? f.char : displayChar(f);
     const replaceCp = f.suggestion?.codePoint !== undefined ? toCodePointHex(f.suggestion.codePoint) : '';
     const replaceChar = f.suggestion ? (f.suggestion.char === '' ? '' : f.suggestion.char) : '';
-    for (const loc of f.locations) {
-      lines.push([
-        toCodePointHex(f.codePoint),
-        char,
-        replaceCp,
-        replaceChar,
-        locLabel(loc),
-        filePosLabel(loc),
-      ].map(esc).join(','));
-      totalOccurrences++;
-    }
+    lines.push([toCodePointHex(f.codePoint), char, replaceCp, replaceChar].map(esc).join(','));
   }
   const body = lines.join('\n') + '\n';
   return {
     bytes: body,
     fileName: `${baseName(result.fileName)}-error-words.csv`,
     mime: 'text/csv;charset=utf-8',
-    warnings: [`Exported ${totalOccurrences} error occurrence(s), one per row.`],
+    warnings: [`Exported ${result.findings.length} unique error code point(s), one per row.`],
   };
 }
 
