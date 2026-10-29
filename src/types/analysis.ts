@@ -89,6 +89,10 @@ export interface ScanOptions {
   mojibake: boolean;
   /** Include ASCII TAB / LF / CR as whitespace findings (off by default). */
   asciiWhitespace: boolean;
+  /** Max number of records to hold in memory for preview (scan still covers whole file). */
+  maxRecords?: number;
+  /** When false, skip finding aggregation (used when resuming to load more record text only). */
+  collectFindings?: boolean;
 }
 
 export const DEFAULT_SCAN_OPTIONS: ScanOptions = {
@@ -98,6 +102,8 @@ export const DEFAULT_SCAN_OPTIONS: ScanOptions = {
   control: true,
   mojibake: true,
   asciiWhitespace: false,
+  maxRecords: Infinity,
+  collectFindings: true,
 };
 
 export interface CsvFieldMeta {
@@ -169,6 +175,14 @@ export interface AnalysisResult {
   byteLength: number;
   /** Warnings (size limits, fallback decoding, workbook feature loss …). */
   warnings: string[];
+  /** True when only the first N records are held in memory (large CSV chunking). */
+  isPartial?: boolean;
+  /** Byte offset to resume streaming from for the next chunk of records. */
+  resumeOffset?: number;
+  /** Number of records currently stored in memory (for preview). */
+  recordsShown?: number;
+  /** Total number of records in the file (scanned, may exceed recordsShown). */
+  totalRecords?: number;
 }
 
 export type SeverityFilter = 'all' | 'recommended' | 'review' | 'none';
@@ -222,6 +236,12 @@ export interface AnalyzeRequest {
   fileSize: number;
   fileType: FileType;
   options: ScanOptions;
+  /** Max number of records to store in memory (scan still covers whole file). */
+  maxRecords?: number;
+  /** Byte offset to resume streaming from (for "load more records"). */
+  resumeOffset?: number;
+  /** Delimiter to use when resuming (skips re-detection). */
+  resumeDelimiter?: string;
   /**
    * Pre-parsed cell grid (used when re-analyzing a cleaned Access database —
    * browsers cannot write .accdb, so the cleaned tables are passed directly).

@@ -10,7 +10,7 @@ import {
   Search,
   ShieldCheck,
 } from 'lucide-react';
-import { useStore, exportErrorWords } from '@/store/useAnalysisStore';
+import { useStore, exportErrorWords, continueAnalysis } from '@/store/useAnalysisStore';
 import { useSheetCounts } from './data';
 import { Badge } from '@/components/ui/Badge';
 import { ANALYSIS_STAGES, isGridFileType, type AnalysisResult, type FindingCategory } from '@/types/analysis';
@@ -40,6 +40,11 @@ export function LeftSidebar({ result }: { result: AnalysisResult }) {
   const setActiveSheet = useStore((s) => s.setActiveSheet);
   const showToast = useStore((s) => s.showToast);
   const sheetCounts = useSheetCounts(result);
+  const isPartial = useStore((s) => s.isPartial);
+  const recordsShown = useStore((s) => s.recordsShown);
+  const totalRecords = useStore((s) => s.totalRecords);
+  const resumeOffset = useStore((s) => s.resumeOffset);
+  const continueAnalysis = useStore((s) => s.continueAnalysis);
 
   const [jump, setJump] = useState('');
 
@@ -150,6 +155,24 @@ export function LeftSidebar({ result }: { result: AnalysisResult }) {
             </dd>
           </div>
         </dl>
+
+        {isPartial && result.csv ? (
+          <section className="mt-2.5 rounded-xl border border-sky-400/35 bg-sky-400/[0.07] p-3">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-sky-400">
+              <AlertTriangle className="h-3.5 w-3.5" /> Large file — partial preview
+            </div>
+            <p className="mt-1 text-xs text-ink-muted">
+              Showing {formatNumber(recordsShown)} of {formatNumber(totalRecords)} records. Findings cover the whole file.
+            </p>
+            <button
+              className="mt-2 w-full btn-primary !py-1.5 !text-[11px]"
+              onClick={continueAnalysis}
+              disabled={!resumeOffset}
+            >
+              Load next {formatNumber(1_000_000)} records
+            </button>
+          </section>
+        ) : null}
 
         <div className="mt-2.5 flex items-start gap-1.5 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-2 py-1.5 text-[10px] leading-relaxed text-emerald-500">
           <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />

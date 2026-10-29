@@ -101,6 +101,8 @@ ctx.onmessage = async (e: MessageEvent<WorkerRequest>) => {
       },
       msg.preloadedExcel,
       msg.buffer ?? null,
+      msg.resumeOffset,
+      msg.resumeDelimiter,
     );
     if (cancelled) {
       replied = true;

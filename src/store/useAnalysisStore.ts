@@ -63,6 +63,13 @@ interface State {
   result: AnalysisResult | null;
   originalResult: AnalysisResult | null;
 
+  /* chunked CSV resume */
+  isPartial: boolean;
+  recordsShown: number;
+  totalRecords: number;
+  resumeOffset: number | null;
+  resumeDelimiter: string | null;
+
   /* workspace */
   centerView: CenterView;
   escapedView: boolean;
@@ -94,6 +101,7 @@ interface State {
   setScanOptions: (patch: Partial<ScanOptions>) => void;
   setPasteOpen: (open: boolean) => void;
   startAnalysis: () => void;
+  continueAnalysis: () => void;
   cancelAnalysis: () => void;
   reset: () => void;
   goToLanding: () => void;
@@ -148,6 +156,12 @@ export const useStore = create<State>((set, get) => ({
 
   result: null,
   originalResult: null,
+
+  isPartial: false,
+  recordsShown: 0,
+  totalRecords: 0,
+  resumeOffset: null,
+  resumeDelimiter: null,
 
   centerView: 'table',
   escapedView: false,
@@ -216,6 +230,13 @@ export const useStore = create<State>((set, get) => ({
       return;
     }
 
+    // Large CSVs: only keep the first 1M records in memory for preview, but scan
+    // the whole file for findings. Set maxRecords so scanCsvStreaming bounds memory.
+    const opts: ScanOptions = {
+      ...scanOptions,
+      maxRecords: fileType === 'csv' && file.size > 50 * 1024 * 1024 ? 1_000_000 : Infinity,
+    };
+
     set({
       screen: 'analyzing',
       progress: null,
@@ -233,13 +254,38 @@ export const useStore = create<State>((set, get) => ({
       filters: { categories: [...ALL_CATEGORIES], severity: 'all', search: '' },
       ignoredKeys: [],
       allowedKeys: [],
+      // chunked resume state
+      isPartial: false,
+      recordsShown: 0,
+      totalRecords: 0,
+      resumeOffset: null,
+      resumeDelimiter: null,
     });
-    runAnalysis(file, fileType, scanOptions, set, get, false);
+    runAnalysis(file, fileType, opts, set, get, false);
   },
 
   cancelAnalysis: () => {
     set({ cancelling: true });
     analyzeWorker.cancel();
+  },
+
+  continueAnalysis: () => {
+    const { file, fileType, resumeOffset, resumeDelimiter } = get();
+    if (!file || !fileType || resumeOffset == null) return;
+
+    const opts: ScanOptions = {
+      ...get().scanOptions,
+      maxRecords: 1_000_000,
+      collectFindings: false,
+    };
+
+    set({
+      screen: 'analyzing',
+      progress: null,
+      analysisError: null,
+      cancelling: false,
+    });
+    runAnalysis(file, fileType, opts, set, get, false, resumeOffset, resumeDelimiter ?? undefined);
   },
 
   reset: () => {
@@ -400,11 +446,21 @@ async function runAnalysis(
   set: SetFn,
   get: GetFn,
   isReanalysis: boolean,
+  resumeOffset?: number,
+  resumeDelimiter?: string,
 ): Promise<void> {
   try {
-    const response = await analyzeWorker.analyze(file, fileType, options, (p) => {
-      set({ progress: p });
-    });
+    const response = await analyzeWorker.analyze(
+      file,
+      fileType,
+      options,
+      (p) => {
+        set({ progress: p });
+      },
+      undefined,
+      resumeOffset,
+      resumeDelimiter,
+    );
     if (response.type === 'cancelled') {
       if (isReanalysis) {
         set({ cleaning: false });
@@ -425,6 +481,18 @@ async function runAnalysis(
     }
 
     const result = response.result;
+
+    // If this is a continuation (loading more records), concatenate new records
+    // onto the existing result's csv data.
+    if (resumeOffset != null && result.csv) {
+      const prev = get().result?.csv;
+      if (prev) {
+        result.csv.records = [...prev.records, ...result.csv.records];
+        result.csv.fieldMeta = [...prev.fieldMeta, ...result.csv.fieldMeta];
+        result.csv.headers = prev.headers;
+      }
+    }
+
     set((s) => ({
       result,
       originalResult: isReanalysis ? s.originalResult : result,
@@ -440,6 +508,12 @@ async function runAnalysis(
           : 'text',
       selectedKey: null,
       selectedLocationId: null,
+      // chunked resume state
+      isPartial: result.isPartial ?? false,
+      recordsShown: result.recordsShown ?? 0,
+      totalRecords: result.totalRecords ?? 0,
+      resumeOffset: result.resumeOffset ?? null,
+      resumeDelimiter: result.csv?.delimiter ?? null,
     }));
 
     if (isReanalysis) {
@@ -554,4 +628,9 @@ export async function commitBatch(batch: CleanOp[]): Promise<void> {
 /** Download one line per suspicious finding (error word) as UTF-8 TXT. */
 export function exportErrorWords(): void {
   useStore.getState().exportErrorWords();
+}
+
+/** Load the next chunk of records for a partially-scanned large CSV. */
+export function continueAnalysis(): void {
+  useStore.getState().continueAnalysis();
 }

@@ -34,10 +34,17 @@ export async function analyzeFile(
   hooks: AnalyzeHooks,
   preloadedExcel?: ExcelData,
   buffer: ArrayBuffer | null = null,
+  resumeOffset?: number,
+  resumeDelimiter?: string,
 ): Promise<AnalysisResult> {
   const t0 = performance.now();
   const warnings: string[] = [];
   const isGrid = fileType === 'excel' || fileType === 'access';
+
+  let isPartial = false;
+  let resultResumeOffset: number | undefined;
+  let recordsScanned = 0;
+  let totalRecords = 0;
 
   if (buffer && buffer.byteLength > LARGE_FILE_BYTES) {
     warnings.push(
@@ -107,7 +114,7 @@ export async function analyzeFile(
     lines = streamed.lines;
     formatDetail = streamed.formatDetail;
   } else if (streaming && fileType === 'csv') {
-    const streamed = await scanCsvStreaming(file!, options, hooks, agg);
+    const streamed = await scanCsvStreaming(file!, options, hooks, agg, options.maxRecords ?? Infinity, resumeOffset ?? 0, resumeDelimiter ?? null);
     csvData = streamed.csv;
     encoding = streamed.encoding;
     confidence = streamed.confidence;
@@ -115,6 +122,10 @@ export async function analyzeFile(
     warnings.push(...streamed.warnings);
     formatDetail = streamed.formatDetail;
     text = streamed.text;
+    isPartial = streamed.isPartial;
+    resultResumeOffset = streamed.resumeOffset;
+    recordsScanned = streamed.recordsScanned;
+    totalRecords = streamed.totalRecords;
   } else if (fileType === 'text') {
     formatDetail = guessTextDetail(text);
     hooks.onStage(2, 0, { scanned: 0 });
@@ -297,6 +308,10 @@ export async function analyzeFile(
     findings: all,
     byteLength: buffer?.byteLength ?? 0,
     warnings,
+    isPartial,
+    resumeOffset: resultResumeOffset,
+    recordsShown: csvData?.records.length,
+    totalRecords,
   };
   if (fileType === 'text') {
     result.text = text;
@@ -462,6 +477,9 @@ async function scanCsvStreaming(
   options: ScanOptions,
   hooks: AnalyzeHooks,
   agg: Aggregator,
+  maxRecords: number = Infinity,
+  startByteOffset: number = 0,
+  resumeDelimiter: string | null = null,
 ): Promise<{
   text: string;
   csv: AnalysisResult['csv'];
@@ -470,13 +488,13 @@ async function scanCsvStreaming(
   hasBom: boolean;
   warnings: string[];
   formatDetail: string;
+  isPartial: boolean;
+  resumeOffset: number;
+  recordsScanned: number;
+  totalRecords: number;
 }> {
   const warnings: string[] = [];
   const CHUNK = STREAM_CHUNK_BYTES;
-
-  const head = file.slice(0, 4096);
-  const headAb = await head.arrayBuffer();
-  const headBytes = new Uint8Array(headAb);
 
   let decoder: TextDecoder;
   let encoding: string;
@@ -484,43 +502,56 @@ async function scanCsvStreaming(
   let hasBom = false;
   let startOffset = 0;
 
-  if (headBytes.length >= 3 && headBytes[0] === 0xef && headBytes[1] === 0xbb && headBytes[2] === 0xbf) {
+  if (startByteOffset > 0) {
+    // Resuming: skip head/BOM/delimiter detection, use provided delimiter.
     decoder = new TextDecoder('utf-8');
-    encoding = 'UTF-8 with BOM';
-    confidence = 'bom';
-    hasBom = true;
-    startOffset = 3;
-  } else if (headBytes.length >= 2 && headBytes[0] === 0xff && headBytes[1] === 0xfe) {
-    decoder = new TextDecoder('utf-16le');
-    encoding = 'UTF-16 LE with BOM';
-    confidence = 'bom';
-    hasBom = true;
-    startOffset = 2;
-  } else if (headBytes.length >= 2 && headBytes[0] === 0xfe && headBytes[1] === 0xff) {
-    decoder = new TextDecoder('utf-16be');
-    encoding = 'UTF-16 BE with BOM';
-    confidence = 'bom';
-    hasBom = true;
-    startOffset = 2;
+    encoding = 'UTF-8 (resumed)';
+    confidence = 'strict';
+    hasBom = false;
+    startOffset = startByteOffset;
   } else {
-    let isUtf8 = true;
-    try {
-      new TextDecoder('utf-8', { fatal: true }).decode(headBytes);
-    } catch {
-      isUtf8 = false;
-    }
-    if (isUtf8) {
+    const head = file.slice(0, 4096);
+    const headAb = await head.arrayBuffer();
+    const headBytes = new Uint8Array(headAb);
+
+    if (headBytes.length >= 3 && headBytes[0] === 0xef && headBytes[1] === 0xbb && headBytes[2] === 0xbf) {
       decoder = new TextDecoder('utf-8');
-      encoding = 'UTF-8';
+      encoding = 'UTF-8 with BOM';
+      confidence = 'bom';
+      hasBom = true;
+      startOffset = 3;
+    } else if (headBytes.length >= 2 && headBytes[0] === 0xff && headBytes[1] === 0xfe) {
+      decoder = new TextDecoder('utf-16le');
+      encoding = 'UTF-16 LE with BOM';
+      confidence = 'bom';
+      hasBom = true;
+      startOffset = 2;
+    } else if (headBytes.length >= 2 && headBytes[0] === 0xfe && headBytes[1] === 0xff) {
+      decoder = new TextDecoder('utf-16be');
+      encoding = 'UTF-16 BE with BOM';
+      confidence = 'bom';
+      hasBom = true;
+      startOffset = 2;
     } else {
-      decoder = new TextDecoder('windows-1252');
-      encoding = 'Windows-1252 (fallback)';
-      confidence = 'fallback';
-      warnings.push('File is not valid UTF-8. It was decoded as Windows-1252 (best effort).');
+      let isUtf8 = true;
+      try {
+        new TextDecoder('utf-8', { fatal: true }).decode(headBytes);
+      } catch {
+        isUtf8 = false;
+      }
+      if (isUtf8) {
+        decoder = new TextDecoder('utf-8');
+        encoding = 'UTF-8';
+      } else {
+        decoder = new TextDecoder('windows-1252');
+        encoding = 'Windows-1252 (fallback)';
+        confidence = 'fallback';
+        warnings.push('File is not valid UTF-8. It was decoded as Windows-1252 (best effort).');
+      }
     }
   }
 
-  const delimiter = await detectDelimiterStreaming(file, decoder, startOffset);
+  const delimiter = resumeDelimiter ?? (await detectDelimiterStreaming(file, decoder, startOffset));
   const headers: string[] = [];
   const records: string[][] = [];
   const fieldMeta: CsvFieldMeta[][] = [];
@@ -530,30 +561,32 @@ async function scanCsvStreaming(
   let recordMeta: CsvFieldMeta[] = [];
   let recordCount = 0;
   let line = 1;
-  let lineStart = 0;
+  let lineStart = startOffset;
   let cpOffset = 0;
   let scannedCp = 0;
-  let hasHeaderGuessed = false;
+  let resumeOffset = 0;
+  let recordsScanned = 0;
+  let stoppedEarly = false;
 
   const colAt = (offsetInLine: number) => offsetInLine - lineStart + 1;
 
   /** Store a finalized record and scan its fields immediately (single pass). */
-  const storeRecord = (vals: string[], meta: CsvFieldMeta[]) => {
+  const storeRecord = (vals: string[], meta: CsvFieldMeta[], keepText: boolean, collectFindings: boolean) => {
     const idx = records.length;
-    records.push(vals);
-    fieldMeta.push(meta);
-    if (idx === 0) {
-      // First record is treated as the header row; capture its values so later
-      // records get real column names in fieldHeader.
-      headers.push(...vals);
+    if (keepText) {
+      records.push(vals);
+      fieldMeta.push(meta);
+      if (idx === 0) {
+        headers.push(...vals);
+      }
     }
-    if (hooks.shouldCancel()) return;
+    if (!collectFindings || hooks.shouldCancel()) return;
     for (let f = 0; f < vals.length; f++) {
       const value = vals[f];
       if (value.length === 0) continue;
       const m = meta[f];
       const cp = scanUnit(value, options, (hit) => {
-        const loc = makeCsvLocation(hit, value, idx, f, headers, m);
+        const loc = makeCsvLocation(hit, value, recordCount, f, headers, m);
         agg.add(hit, loc);
       });
       agg.addCodePoints(cp);
@@ -590,7 +623,6 @@ async function scanCsvStreaming(
       pendingFieldMeta = null;
 
       if (combined[i] === '"') {
-        // ---- quoted field ----
         i++; // skip opening quote
         let chunkStart = i;
         let closed = false;
@@ -627,7 +659,6 @@ async function scanCsvStreaming(
           i++;
         }
         if (!closed && i >= n && fileOffset < file.size) {
-          // quoted field continues in the next chunk
           value += combined.slice(chunkStart, n);
           pendingField = value;
           pendingFieldMeta = fieldMetaStart;
@@ -638,7 +669,6 @@ async function scanCsvStreaming(
         if (i > chunkStart && chunkStart <= n) value += combined.slice(chunkStart, Math.min(i, n));
         while (i < n && combined[i] !== delimiter && combined[i] !== '\n' && combined[i] !== '\r') i++;
       } else {
-        // ---- unquoted field ----
         const start = i;
         while (i < n && combined[i] !== delimiter && combined[i] !== '\n' && combined[i] !== '\r') i++;
         value = combined.slice(start, i);
@@ -647,7 +677,6 @@ async function scanCsvStreaming(
       recordVals.push(value);
       recordMeta.push(fieldMetaStart);
 
-      // ---- terminator ----
       if (combined[i] === delimiter) {
         i++;
         continue;
@@ -657,11 +686,19 @@ async function scanCsvStreaming(
         i += combined[i + 1] === '\n' ? 2 : 1;
         line++;
         lineStart = i;
-        storeRecord(recordVals, recordMeta);
+        const keepText = recordCount < maxRecords;
+        storeRecord(recordVals, recordMeta, keepText, options.collectFindings ?? true);
+        recordsScanned++;
         recordCount++;
         recordVals = [];
         recordMeta = [];
         hooks.onStage(2, 0, { scanned: agg.totalCodePoints, findings: agg.size, records: recordCount });
+        if (recordCount >= maxRecords && !stoppedEarly) {
+          stoppedEarly = true;
+          resumeOffset = fileOffset;
+          i = n;
+          break;
+        }
         if (i >= n) {
           if (fileOffset < file.size) { pending = ""; i = n; break; }
           break;
@@ -673,11 +710,19 @@ async function scanCsvStreaming(
         i++;
         line++;
         lineStart = i;
-        storeRecord(recordVals, recordMeta);
+        const keepText = recordCount < maxRecords;
+        storeRecord(recordVals, recordMeta, keepText, options.collectFindings ?? true);
+        recordsScanned++;
         recordCount++;
         recordVals = [];
         recordMeta = [];
         hooks.onStage(2, 0, { scanned: agg.totalCodePoints, findings: agg.size, records: recordCount });
+        if (recordCount >= maxRecords && !stoppedEarly) {
+          stoppedEarly = true;
+          resumeOffset = fileOffset;
+          i = n;
+          break;
+        }
         if (i >= n) {
           if (fileOffset < file.size) { pending = ""; i = n; break; }
           break;
@@ -685,7 +730,6 @@ async function scanCsvStreaming(
         continue;
       }
 
-      // i >= n — field unterminated, more data follows in the next chunk
       if (fileOffset < file.size) {
         pendingField = value;
         pendingFieldMeta = fieldMetaStart;
@@ -695,13 +739,16 @@ async function scanCsvStreaming(
       }
 
       // end of file
-      storeRecord(recordVals, recordMeta);
+      const keepText = recordCount < maxRecords;
+      storeRecord(recordVals, recordMeta, keepText, options.collectFindings ?? true);
+      recordsScanned++;
       recordCount++;
       recordVals = [];
       recordMeta = [];
       break;
     }
 
+    if (stoppedEarly) break;
     if (i >= n && fileOffset >= file.size) break;
     pending = combined.slice(i);
     scannedCp = 0;
@@ -712,14 +759,16 @@ async function scanCsvStreaming(
     });
   }
 
-  if (recordVals.length > 0) {
-    storeRecord(recordVals, recordMeta);
+  if (recordVals.length > 0 && recordCount < maxRecords) {
+    storeRecord(recordVals, recordMeta, true, options.collectFindings ?? true);
+    recordsScanned++;
+    recordCount++;
   }
 
   const dataRows = records.length > 0 ? records.slice(1) : records;
   const hasHeader = records.length > 0;
 
-  const formatDetail = `Delimited text · ${dataRows.length.toLocaleString()} data rows`;
+  const formatDetail = `Delimited text · ${dataRows.length.toLocaleString()} data rows${stoppedEarly ? ` (showing first ${maxRecords.toLocaleString()})` : ''}`;
   return {
     text: '',
     csv: { headers, records, fieldMeta, delimiter, hasHeader },
@@ -728,6 +777,10 @@ async function scanCsvStreaming(
     hasBom,
     warnings,
     formatDetail,
+    isPartial: stoppedEarly,
+    resumeOffset,
+    recordsScanned,
+    totalRecords: recordCount,
   };
 }
 

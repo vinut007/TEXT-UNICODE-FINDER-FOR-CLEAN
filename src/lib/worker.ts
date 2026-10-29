@@ -52,6 +52,8 @@ class AnalyzeWorker {
     options: ScanOptions,
     onProgress: ProgressFn,
     preloadedExcel?: ExcelData,
+    resumeOffset?: number,
+    resumeDelimiter?: string,
   ): Promise<Result> {
     const w = this.ensure();
     return new Promise<Result>((resolve, reject) => {
@@ -106,19 +108,20 @@ class AnalyzeWorker {
           }
 
           if (buffer) {
-            w.postMessage(
-              {
-                type: 'analyze',
-                file: null,
-                buffer,
-                fileName: name,
-                fileSize: size,
-                fileType,
-                options,
-                preloadedExcel: null,
-              },
-              [buffer],
-            );
+            w.postMessage({
+              type: 'analyze',
+              file: null,
+              buffer,
+              fileName: name,
+              fileSize: size,
+              fileType,
+              options,
+              preloadedExcel: null,
+              resumeOffset,
+              resumeDelimiter,
+            },
+            [buffer],
+          );
           } else {
             // Large text / CSV: stream from the File object.
             w.postMessage({
@@ -130,6 +133,8 @@ class AnalyzeWorker {
               fileType,
               options,
               preloadedExcel: null,
+              resumeOffset,
+              resumeDelimiter,
             });
           }
         } catch (err) {
