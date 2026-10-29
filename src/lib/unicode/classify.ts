@@ -232,6 +232,43 @@ function asciiBase(cp: number): string | null {
   return null;
 }
 
+/** Recover the intended character from a mojibake sequence by re-encoding
+ * the visible text as Latin-1 bytes and decoding as UTF-8.
+ *
+ * Example: "Ã¼" → bytes C3 BC → UTF-8 decode → "ü" → NFD base "u".
+ */
+export function recoverMojibake(text: string): ReplacementSuggestion | null {
+  try {
+    const bytes = new Uint8Array(text.length);
+    for (let i = 0; i < text.length; i++) {
+      const cp = text.codePointAt(i)!;
+      if (cp > 0xff) return null; // not pure Latin-1
+      bytes[i] = cp;
+    }
+    const recovered = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    if (recovered.length === 0) return null;
+    const recoveredCp = recovered.codePointAt(0)!;
+
+    const base = asciiBase(recoveredCp);
+    if (base) {
+      const baseCp = base.codePointAt(0)!;
+      return {
+        char: base,
+        codePoint: baseCp,
+        label: `Replace with '${base}' (U+${baseCp.toString(16).toUpperCase().padStart(4, '0')}) — recovered from '${text}'`,
+      };
+    }
+
+    return {
+      char: recovered,
+      codePoint: recoveredCp,
+      label: `Replace with '${recovered}' (U+${recoveredCp.toString(16).toUpperCase().padStart(4, '0')}) — recovered from '${text}'`,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /* ---------------- mojibake heuristics ---------------- */
 
 /** Characters produced by decoding UTF-8 bytes as Windows-1252 punctuation. */

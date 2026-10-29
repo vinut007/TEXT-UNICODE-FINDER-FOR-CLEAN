@@ -1,6 +1,7 @@
 import {
   classifyCodePoint,
   findMojibake,
+  recoverMojibake,
   type MojibakeMatch,
 } from '@/lib/unicode/classify';
 import { getCodePointName, getCategoryCode, getCategoryLabel } from '@/lib/unicode/names';
@@ -75,7 +76,7 @@ export function scanUnit(
         cpLength: cpLen,
         length: pending.length,
         isSequence: true,
-        suggestion: {
+        suggestion: recoverMojibake(pending.text) ?? {
           char: '',
           label: 'Review encoding — likely UTF-8 read as Windows-1252',
         },
