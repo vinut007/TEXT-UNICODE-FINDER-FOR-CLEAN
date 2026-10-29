@@ -104,7 +104,6 @@ interface State {
   setPasteOpen: (open: boolean) => void;
   startAnalysis: () => void;
   loadNextAnalysis: () => void;
-  loadPreviousAnalysis: () => void;
   cancelAnalysis: () => void;
   reset: () => void;
   goToLanding: () => void;
@@ -277,7 +276,7 @@ export const useStore = create<State>((set, get) => ({
   },
 
   loadNextAnalysis: () => {
-    const { file, fileType, resumeOffset, resumeDelimiter, chunkStartOffsets, chunkIndex } = get();
+    const { file, fileType, resumeOffset, resumeDelimiter } = get();
     if (!file || !fileType || resumeOffset == null) return;
 
     const opts: ScanOptions = {
@@ -291,33 +290,8 @@ export const useStore = create<State>((set, get) => ({
       progress: null,
       analysisError: null,
       cancelling: false,
-      chunkStartOffsets: [...chunkStartOffsets, resumeOffset],
-      chunkIndex: chunkIndex + 1,
     });
     runAnalysis(file, fileType, opts, set, get, false, resumeOffset, resumeDelimiter == null ? undefined : resumeDelimiter);
-  },
-
-  loadPreviousAnalysis: () => {
-    const { file, fileType, chunkStartOffsets, chunkIndex } = get();
-    if (!file || !fileType || chunkIndex <= 0) return;
-
-    const newIndex = chunkIndex - 1;
-    const offset = chunkStartOffsets[newIndex];
-
-    const opts: ScanOptions = {
-      ...get().scanOptions,
-      maxRecords: 1_000_000,
-      collectFindings: false,
-    };
-
-    set({
-      screen: 'analyzing',
-      progress: null,
-      analysisError: null,
-      cancelling: false,
-      chunkIndex: newIndex,
-    });
-    runAnalysis(file, fileType, opts, set, get, false, offset ?? undefined, undefined);
   },
 
   reset: () => {
@@ -514,13 +488,25 @@ async function runAnalysis(
 
     const result = response.result;
 
-    // Preserve findings from the first full scan when loading chunks (next/previous).
+    // Preserve findings from the first full scan when loading chunks.
     // Chunk loads use collectFindings: false, so re-apply the aggregated findings.
-    if ((resumeOffset != null || get().chunkIndex > 0) && get().result?.findings) {
+    if (get().result?.findings) {
       const prevResult = get().result;
       if (prevResult?.findings) {
         result.findings = prevResult.findings;
         result.stats = prevResult.stats;
+      }
+    }
+
+    // Append newly loaded records onto existing ones so users can page through
+    // the entire file (e.g. load 1M at a time until all 4M are in view).
+    if (resumeOffset != null && result.csv) {
+      const prev = get().result?.csv;
+      const next = result.csv;
+      if (prev && next) {
+        next.records = [...prev.records, ...next.records];
+        next.fieldMeta = [...prev.fieldMeta, ...next.fieldMeta];
+        next.headers = prev.headers;
       }
     }
 
@@ -664,9 +650,4 @@ export function exportErrorWords(): void {
 /** Load the next chunk of records for a partially-scanned large CSV. */
 export function loadNextAnalysis(): void {
   useStore.getState().loadNextAnalysis();
-}
-
-/** Load the previous chunk of records for a partially-scanned large CSV. */
-export function loadPreviousAnalysis(): void {
-  useStore.getState().loadPreviousAnalysis();
 }
