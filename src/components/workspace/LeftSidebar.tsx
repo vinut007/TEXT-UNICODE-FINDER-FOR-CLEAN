@@ -44,7 +44,9 @@ export function LeftSidebar({ result }: { result: AnalysisResult }) {
   const recordsShown = useStore((s) => s.recordsShown);
   const totalRecords = useStore((s) => s.totalRecords);
   const resumeOffset = useStore((s) => s.resumeOffset);
+  const chunkIndex = useStore((s) => s.chunkIndex);
   const loadNext = useStore((s) => s.loadNextAnalysis);
+  const loadPrevious = useStore((s) => s.loadPreviousAnalysis);
 
   const [jump, setJump] = useState('');
 
@@ -162,16 +164,25 @@ export function LeftSidebar({ result }: { result: AnalysisResult }) {
               <AlertTriangle className="h-3.5 w-3.5" /> Large file — load records in chunks
             </div>
             <p className="mt-1 text-xs text-ink-muted">
-              Loaded {formatNumber(recordsShown)} of {formatNumber(totalRecords)} records · findings cover the whole file
+              Chunk {chunkIndex + 1} · loaded {formatNumber(recordsShown)} of {formatNumber(totalRecords)} records · findings cover the whole file
             </p>
-            <button
-              className="w-full btn-primary !py-1.5 !text-[11px]"
-              onClick={loadNext}
-              disabled={!resumeOffset}
-            >
-              Load next {formatNumber(1_000_000)} records →
-            </button>
-            {!resumeOffset && (
+            <div className="mt-2 flex gap-1">
+              <button
+                className="flex-1 btn-ghost !py-1.5 !text-[10px]"
+                onClick={loadPrevious}
+                disabled={chunkIndex <= 0}
+              >
+                ← Previous
+              </button>
+              <button
+                className="flex-1 btn-primary !py-1.5 !text-[10px]"
+                onClick={loadNext}
+                disabled={!resumeOffset}
+              >
+                Next →
+              </button>
+            </div>
+            {!resumeOffset && chunkIndex > 0 && (
               <p className="mt-1 text-[10px] text-ink-faint">
                 All records loaded.
               </p>
