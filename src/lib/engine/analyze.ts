@@ -422,8 +422,8 @@ async function scanTextStreaming(
       const nl = indexOfNewline(combined, searchStart);
       if (nl === -1) break;
       const line = combined.slice(searchStart, nl);
-      const hasCRLF = combined[nl] === 13 && combined[nl + 1] === 10;
-      if (hasCRLF) { crlf++; } else if (combined[nl] === 10) { lf++; } else { cr++; }
+      const hasCRLF = combined.charCodeAt(nl) === 13 && combined.charCodeAt(nl + 1) === 10;
+      if (hasCRLF) { crlf++; } else if (combined.charCodeAt(nl) === 10) { lf++; } else { cr++; }
       scanTextLine(line, lineIndex, cpOffset, options, agg);
       cpOffset += countCodePoints(line) + 1;
       scannedCp += line.length;

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   ArrowUpDown,
   Ban,
+  CheckCircle2,
   Copy,
   ExternalLink,
   EyeOff,
@@ -110,7 +111,7 @@ function FindingsList({
   if (findings.length === 0) {
     return (
       <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center">
-        <Check className="mx-auto h-6 w-6 text-emerald-500" />
+        <CheckCircle2 className="mx-auto h-6 w-6 text-emerald-500" />
         <p className="mt-2 text-sm font-bold text-emerald-500">No suspicious characters</p>
         <p className="mt-1 text-xs text-ink-muted">
           Everything matches the current filters — this file looks clean.
