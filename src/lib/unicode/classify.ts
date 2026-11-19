@@ -496,19 +496,10 @@ export function recoverMojibake(text: string): ReplacementSuggestion | null {
     if (recovered.length === 0) return null;
     const recoveredCp = recovered.codePointAt(0)!;
 
-    const base = asciiBase(recoveredCp);
-    if (base) {
-      const baseCp = base.codePointAt(0)!;
-      return {
-        char: base,
-        codePoint: baseCp,
-        label: `Replace with '${base}' (U+${baseCp.toString(16).toUpperCase().padStart(4, '0')}) — recovered from '${text}'`,
-      };
-    }
-
-    const multi = suggestMultiAscii(recoveredCp);
-    if (multi) return multi;
-
+    // Recover to the intended NATIVE character — preserve the original
+    // language/script (e.g. mojibake 'Ã¼' -> 'ü', not 'u'). Accent-stripping
+    // to English/ASCII is handled separately for clean accented characters
+    // via asciiBase() in classifyCodePoint().
     return {
       char: recovered,
       codePoint: recoveredCp,

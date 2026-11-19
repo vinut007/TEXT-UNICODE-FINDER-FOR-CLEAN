@@ -34,8 +34,11 @@ export function distinctUnitCount(f: CharFinding): number {
 }
 
 export function canReplace(f: CharFinding): boolean {
-  // Mojibake is an encoding problem — never auto-rewritten from a pattern match.
-  return f.category !== 'mojibake' && !!f.suggestion;
+  // Any finding with a concrete replacement suggestion can be applied.
+  // Mojibake is recovered to its intended native character (preserves
+  // language/script). Clean accented characters are stripped to ASCII base
+  // via their suggestion from classifyCodePoint().
+  return !!f.suggestion;
 }
 
 export async function copyText(text: string): Promise<void> {

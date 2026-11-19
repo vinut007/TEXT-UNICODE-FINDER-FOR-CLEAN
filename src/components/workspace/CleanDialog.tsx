@@ -194,13 +194,13 @@ export function CleanDialog({ result }: { result: AnalysisResult }) {
             <div className="mt-3 flex items-start gap-2 rounded-lg border border-orange-500/35 bg-orange-500/[0.07] p-3">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
               <p className="text-[10.5px] leading-relaxed text-ink-muted">
-                <span className="font-semibold text-orange-500">Mojibake is never auto-fixed.</span>{' '}
+                <span className="font-semibold text-orange-500">Mojibake can be repaired.</span>{' '}
                 {mojibake.length} pattern{mojibake.length === 1 ? '' : 's'} detected (e.g.{' '}
                 {mojibake
                   .slice(0, 3)
                   .map((f) => f.name)
                   .join(', ')}
-                ). Repair these by re-exporting the source with correct encoding.
+                . Select them to recover the intended native characters (original language/script preserved).
               </p>
             </div>
           ) : null}
